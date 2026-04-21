@@ -20,14 +20,14 @@ Given a dataset of Arabic speech audio recordings, classify each speaker as **Na
 ### Step 0 — Get the Code
 
 ```bash
-git clone https://github.com/Naitik-Gupta96/AuraSense-Hackenza.git
-cd AuraSense-Hackenza
+git clone https://github.com/sahay4606/hackenza---AuraSense.git
+cd hackenza---AuraSense
 ```
 
 After cloning, your folder should look like this:
 
 ```
-AuraSense-Hackenza/
+hackenza---AuraSense/
 ├── aura_sense.py
 ├── Nativity Assessmet Audio Dataset(Training Dataset).csv
 ├── Nativity Assessmet Audio Dataset(Test Dataset).csv
@@ -276,7 +276,7 @@ Each phase checks whether output files already exist before processing — alrea
 | Internet | Required | First run only — then cached |
 | GPU | Not required | CUDA gives ~3–5× speedup if available |
 
-> Built and tested on **MacBook Air (Apple Silicon M-series, CPU-only, 8 GB RAM)** — no GPU needed.
+> Built and tested on **MacBook Air (Apple Silicon M-series, CPU-only, 16 GB RAM)** — no GPU needed.
 
 ---
 
