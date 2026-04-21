@@ -1,0 +1,75 @@
+# Technical Overview of AuraSense Codebase
+
+## 1. Executive Summary: Full Concise Flow
+The **AuraSense** codebase is an AI-powered pipeline designed to classify Arabic speech into two categories: **Native** or **Non-Native**. The logic follows a distinct Multi-stage pipeline:
+
+* **Phase 1 (Feature Extraction):** For each audio file, the system extracts two different types of AI embeddings (dense mathematical representations of sound):
+   * **WavLM (Linguistic):** Extracts a 768-dimensional array representing the pronunciation, phenomes, and linguistic properties of the Arabic spoken. 
+   * **ECAPA-TDNN (Speaker/Acoustic):** Extracts a 192-dimensional array representing the speaker's biometric vocal traits (pitch, tone, vocal tract shape, etc.).
+* **Phase 2 (Model Training / Fusion):** Both the 768-D sequence and 192-D sequence are passed through parallel neural network pathways ("heads"). Then, instead of just concatenating them, the model uses a bespoke **Weighted Late Fusion** technique—it dynamically learns an optimal ratio ($\alpha$) of how much it should trust the Linguistic features vs. the Acoustic features before outputting the final prediction.
+* **Phase 3 (Test Inference):** Using the trained Fusion Model, the system predicts the nativity of new, unlabeled test audio files and packages the results into a `submission.csv` file.
+* **Phase 4 (Optional Evaluation):** System allows for head-to-head comparison with previous versions of the pipeline.
+
+---
+
+## 2. Point-Wise Content Index
+1. **Executive Summary: Full Concise Flow**
+2. **Data Pre-Processing and VRAM Protection**
+3. **Phase 1: Feature Extraction (The Math and Logic)**
+   * 3.1 WavLM Base Plus (Linguistic Processing)
+   * 3.2 ECAPA-TDNN (Acoustic Processing)
+4. **Phase 2: Weighted Late Fusion (The Core Logic & Math)**
+   * 4.1 Neural Network "Heads"
+   * 4.2 Alpha ($\alpha$) Parameter and Logit Blending
+   * 4.3 Loss Function, Class Weights, and Label Smoothing
+5. **Code Implementation Details**
+
+---
+
+## 3. The Math, Logic, and Technical Terms Explained
+
+### 3.1 Data Preprocessing & VRAM Protection
+* **Logic:** Audio files are large continuous waves. If you feed 2-minute audio into a deep transformer model, the GPU's memory (VRAM) will overflow and crash.
+* **Solution (Chunking):** The audio is sliced into 10-second segments (chunks). Each chunk goes through the extractor, yielding an embedding. Finally, the system averages these chunk-embeddings into one single global embedding vector for the entire file.
+
+### 3.2 Feature Extraction Models
+* **Embeddings (Tech Term):** Think of an embedding as a summary of an audio snippet mapped onto a massive multidimensional GPS map. Similar sounding samples will have coordinates (array values) closer together.
+* **WavLM (768-D):** Microsoft's model trained on 60,000+ hours of audio. It's incredibly good at mapping *what* is being said and the linguistic nuances (like accent).
+* **ECAPA-TDNN (192-D):** Designed for speaker verification. It evaluates *how* it's being said physically (vocal tract resonance, deeper pitch).
+
+### 3.3 Dual-Head Architecture (Neural Networks)
+By reducing 768 to 32, and 192 to 16, the system runs parallel network pathways to compress these complex embeddings down to simpler numbers. Each "head" outputs **Logits**.
+* **Logit (Tech Term):** Raw, unnormalized prediction scores from a neural network before they are converted into probabilities (percentages). E.g., a network might say [3.5, -2.1] for [Native, Non-Native].
+
+### 3.4 Weighted Late Fusion (The Core Math)
+Rather than just pasting the 768-D and 192-D vectors together ("Early Fusion"), AuraSense uses **Late Fusion**. It asks both networks to make their own decision, and then it weighs those decisions using a formula:
+> **Final Decision = $\alpha$ * (WavLM Prediction) + (1 - $\alpha$) * (ECAPA Prediction)**
+
+* **The $\alpha$ (Alpha) Parameter:** This is a trainable parameter. It starts at a specific value (~0.85), meaning the script initializes by trusting the WavLM features 85% of the time, and ECAPA 15% of the time. But over training epochs, the AI adjusts $\alpha$ mathematically to find the absolute perfect sweet spot for Arabic nativity detection.
+* **Sigmoid Function:** To ensure $\alpha$ stays strictly between $0.0$ (0%) and $1.0$ (100%), the code applies the math function $Sigmoid(x) = \frac{1}{1 + e^{-x}}$. 
+
+### 3.5 Class Weights & Label Smoothing
+* **Class Weights:** The dataset is imbalanced (114 Native vs. 46 Non-Native). Without intervention, the AI would just guess "Native" every time to easily score ~71% accuracy. Class weighting heavily mathematically penalizes the model when it gets a "Non-Native" guess wrong, forcing it to pay attention.
+* **Label Smoothing:** Instead of telling the AI that a sample is 100% Native, it tells the AI it's 90% Native and 10% Non-Native. This prevents the AI from becoming overconfident and rigid.
+
+---
+
+## 4. How It Is Implemented via Code
+
+* **Chunking Implementation:** Utilizes PyTorch's splitting utility: `torch.split(waveform, CHUNK_SAMPLES)`. The output loop generates embeddings, appends them to a list, and compresses them with `torch.stack(chunk_embeddings).mean(dim=0)`.
+* **Neural Network Modules:** The fusion model is implemented as a PyTorch `class WeightedLateFusion(nn.Module)`. 
+* **Model Heads:** Implemented using `nn.Sequential` with `nn.Linear` layers, `nn.BatchNorm1d` (for stability), `nn.GELU` (an activation function superior to standard ReLU for generalizability), and `nn.Dropout(0.5)` to intentionally forget 50% of the nodes randomly during training to prevent overfitting.
+* **Alpha Parameter Initialization:** 
+  It creates a mathematically tuned float parameter:
+  `self.alpha_logit = nn.Parameter(torch.tensor(1.73))`
+  `1.73` is chosen because `Sigmoid(1.73) ≈ 0.85` (initializing the 85-15 split).
+* **Late Fusion Execution Logic:**
+  ```python
+  def forward(self, wavlm_feat, ecapa_feat):
+      wavlm_logits = self.wavlm_head(wavlm_feat)
+      ecapa_logits = self.ecapa_head(ecapa_feat)
+      alpha = torch.sigmoid(self.alpha_logit)
+      fused_logits = alpha * wavlm_logits + (1.0 - alpha) * ecapa_logits
+      return fused_logits, alpha
+  ```
+* **Optimizer Setup:** Uses PyTorch's `optim.AdamW` (Adaptive Moment Estimation with Weight decay) and a mathematical schedule `CosineAnnealingWarmRestarts` which dynamically oscillates the learning rate to help the model escape training ruts (local minima).

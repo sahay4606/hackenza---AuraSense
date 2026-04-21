@@ -1,0 +1,13 @@
+# AuraSense — Hackenza 2026
+# Python 3.10+
+
+torch==2.10.0
+torchaudio==2.10.0
+transformers==4.44.0
+speechbrain==1.0.3
+huggingface_hub==0.36.2
+scikit-learn==1.7.2
+pandas==2.3.3
+numpy==2.2.6
+tqdm
+soundfile>=0.12.1
