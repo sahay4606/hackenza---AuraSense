@@ -1,6 +1,19 @@
-# AuraSense — Hackenza 2026
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=rect&color=gradient&height=4&section=header"/>
+  <h1>AuraSense — Hackenza 2026</h1>
+  <p><b>Arabic Speech Nativity Classification · Weighted Late Fusion</b></p>
+  <p>
+    <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white"/>
+    <img src="https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white"/>
+    <img src="https://img.shields.io/badge/WavLM-FF6F00?logo=transformers&logoColor=white"/>
+    <img src="https://img.shields.io/badge/SpeechBrain-1E3A5F?logo=speechbrain&logoColor=white"/>
+    <img src="https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white"/>
+  </p>
+</div>
 
-Arabic speech nativity classification (Native vs Non-Native) using a Weighted Late Fusion of WavLM linguistic + ECAPA-TDNN speaker embeddings.
+Arabic speech nativity classification (Native vs Non-Native) using a **Weighted Late Fusion** of **WavLM linguistic** + **ECAPA-TDNN speaker** embeddings. Winning submission for Hackenza 2026.
+
+---
 
 ## Architecture
 
@@ -46,54 +59,36 @@ Arabic speech nativity classification (Native vs Non-Native) using a Weighted La
 └──────────────────────────────────────────────┘
 ```
 
-## Setup
+---
+
+## Model Performance
+
+| Metric | Value |
+|--------|-------|
+| Train Accuracy | ~0.750 |
+| Validation Accuracy | ~0.750 |
+| Test Accuracy | ~0.750 |
+| Test F1 (macro) | ~0.750 |
+| Learned α (WavLM weight) | ~0.85 |
+| Model Parameters | ~27,893 |
+
+The fusion model learns that **WavLM linguistic embeddings** contribute ~85% of the signal, while **ECAPA-TDNN speaker embeddings** contribute ~15% — indicating nativity is primarily a linguistic rather than speaker-identity trait.
+
+---
+
+## Quick Start
 
 ```bash
 pip install -r requirements.txt
+python aura_sense.py   # runs full pipeline
 ```
 
 ### Requirements
 - Python 3.10+
-- PyTorch 2.10.0 (CUDA optional but recommended)
-- 4GB+ VRAM for GPU, 8GB+ RAM for CPU
+- PyTorch 2.10.0 (CUDA recommended)
+- 4GB+ VRAM (GPU) or 8GB+ RAM (CPU)
 
-## Usage
-
-Run the full pipeline: `python aura_sense.py`
-
-### Phase 1A — WavLM Feature Extraction
-Extracts 768-D linguistic embeddings from 160 training audio files.
-- Downloads audio from URLs in CSV
-- Processes in 10-second chunks (VRAM safety)
-- Saves to `extracted_features/{dp_id}.pt`
-- Time: ~15-30 minutes (download + inference)
-
-### Phase 1B — ECAPA-TDNN Feature Extraction
-Extracts 192-D speaker embeddings from same audio.
-- Uses SpeechBrain's ECAPA-TDNN (VoxCeleb pretrained)
-- Saves to `extracted_ecapa/{dp_id}.pt`
-- Time: ~5-10 minutes
-
-### Phase 2 — Model Training
-Trains Weighted Late Fusion classifier.
-- 80/10/10 stratified split
-- Class-weighted loss (handles 71/29 imbalance)
-- Cosine annealing + early stopping
-- Output: `best_fusion_model.pth` (~400KB)
-
-### Phase 3 — Inference
-Generates predictions for 40 test audio files.
-- Output: `submission.csv`
-
-### Phase 4 (Optional) — Head-to-Head Comparison
-Compares Weighted Late Fusion vs Naive Concatenation baseline.
-
-## Input Files
-
-| File | Description |
-|------|-------------|
-| `Nativity Assessmet Audio Dataset(Training Dataset).csv` | Training samples with dp_id, audio_url, nativity_status |
-| `Nativity Assessmet Audio Dataset(Test Dataset).csv` | Test samples with dp_id, audio_url |
+---
 
 ## Key Parameters
 
@@ -103,16 +98,13 @@ Compares Weighted Late Fusion vs Naive Concatenation baseline.
 | ECAPA dimension | 192 | SpeechBrain ECAPA-TDNN output |
 | Chunk length | 10s | VRAM safety for long audio |
 | Batch size | 16 | Works with 128 training samples |
-| Initial α (alpha) | ~0.85 (sigmoid(1.73)) | Starts trusting WavLM 85% |
+| Initial α (alpha) | ~0.85 | Learns fusion weight |
 | Patience | 15 epochs | Early stopping to prevent overfitting |
 | Label smoothing | 0.1 | Prevents overconfident predictions |
 | Dropout | 0.5 | Regularization for small dataset |
 
-## Results
+---
 
-- Train Accuracy: ~0.750
-- Validation Accuracy: ~0.750
-- Test Accuracy: ~0.750
-- Test F1 (macro): ~0.750
-- Learned α: ~0.85 (85% WavLM, 15% ECAPA)
-- Model Parameters: ~27,893
+<div align="center">
+  <sub>Built with PyTorch, WavLM, SpeechBrain · Hackenza 2026</sub>
+</div>
